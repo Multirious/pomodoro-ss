@@ -3,9 +3,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use device_query::{DeviceQuery, DeviceState, Keycode};
+use device_query::{DeviceEvents, DeviceQuery, DeviceState, Keycode};
 
-use crate::{Process, Vec2, World};
+use crate::{Process, World};
 
 pub type CalculateActivityFn = Box<dyn Fn(&ActivityMonitor, ActivityKind, usize) -> f64>;
 
@@ -14,7 +14,7 @@ pub struct ActivityMonitor {
     data: VecDeque<(ActivityKind, Instant, f64)>,
     total_activity_value: f64,
     time_start: Instant,
-    previous_mouse_coord: Vec2,
+    previous_mouse_coord: (i32, i32),
     previous_key_presses: Vec<Keycode>,
     previous_mouse_pressses: Vec<bool>,
     calulate_activity_fn: CalculateActivityFn,
@@ -26,15 +26,14 @@ pub enum ActivityKind {
     KeyJustPress,
     MousePressed,
     MouseJustPressed,
-    MouseMove { pixels: Vec2 },
+    MouseMove { distance: f64 },
 }
 
 impl ActivityMonitor {
-    pub fn new(
-        world: &World,
-        calulate_activity_fn: CalculateActivityFn,
-        max_data_buffer_size: usize,
-    ) -> ActivityMonitor {
+    pub fn new<A>(calulate_activity_fn: A, max_data_buffer_size: usize) -> ActivityMonitor
+    where
+        A: Fn(&ActivityMonitor, ActivityKind, usize) -> f64 + 'static,
+    {
         ActivityMonitor {
             max_data_buffer_size,
             data: VecDeque::with_capacity(max_data_buffer_size),
@@ -43,8 +42,15 @@ impl ActivityMonitor {
             previous_mouse_coord: DeviceState.get_mouse().coords.into(),
             previous_key_presses: DeviceState.get_keys(),
             previous_mouse_pressses: DeviceState.get_mouse().button_pressed,
-            calulate_activity_fn,
+            calulate_activity_fn: Box::new(calulate_activity_fn),
         }
+    }
+
+    pub fn set_calculate_activity_fn<A>(&mut self, calulate_activity_fn: A)
+    where
+        A: Fn(&ActivityMonitor, ActivityKind, usize) -> f64 + 'static,
+    {
+        self.calulate_activity_fn = Box::new(calulate_activity_fn)
     }
 
     pub fn activity_value(&self) -> f64 {
@@ -114,7 +120,12 @@ impl Process for ActivityMonitor {
         let mouse = DeviceState.get_mouse();
         let mouse_coord = mouse.coords.into();
         let keys = DeviceState.get_keys();
-        let mouse_diff = self.previous_mouse_coord - mouse_coord;
+        let mouse_diff = {
+            let (px, py) = self.previous_mouse_coord;
+            let (nx, ny) = mouse_coord;
+            let (dx, dy) = ((px - nx) as f64, (py - ny) as f64);
+            (dx * dx + dy * dy).sqrt().abs()
+        };
         let mouse_buttons_pressed = mouse.button_pressed.iter().filter(|v| **v).count();
         let mouse_buttons_just_pressed = self
             .previous_mouse_pressses
@@ -138,8 +149,14 @@ impl Process for ActivityMonitor {
                 world,
             );
         }
-        if mouse_diff.magnitude() > 0.0 {
-            self.update_activity(ActivityKind::MouseMove { pixels: mouse_diff }, 1, world)
+        if mouse_diff > 0.0 {
+            self.update_activity(
+                ActivityKind::MouseMove {
+                    distance: mouse_diff,
+                },
+                1,
+                world,
+            )
         }
         if keys_pressed > 0 {
             self.update_activity(ActivityKind::KeyPress, keys_pressed, world);
