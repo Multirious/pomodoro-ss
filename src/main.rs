@@ -11,6 +11,7 @@ use time::{Stopwatch, Timer};
 
 mod activity_monitor;
 mod break_notifier;
+#[cfg(windows)]
 mod os;
 mod time;
 
