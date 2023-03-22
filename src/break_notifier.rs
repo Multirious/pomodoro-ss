@@ -1,41 +1,53 @@
+use std::sync::mpsc;
 use std::time::Duration;
 
 use crate::{
     activity_monitor::{ActivityKind, ActivityMonitor},
     time::{Stopwatch, Timer},
-    Process, World,
+    World,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub enum BreakState {
     Break,
     NotBreak,
 }
 
-pub struct NotifyTime {
+pub struct TimeBreak {
     break_duration: Duration,
     break_timer: Stopwatch,
     not_break_duration: Duration,
     not_break_timer: Stopwatch,
     state: BreakState,
+
+    start_break_subscribers: Vec<Box<dyn Fn()>>,
 }
 
-impl NotifyTime {
+impl TimeBreak {
     pub fn new(
         in_state: BreakState,
         break_duration: Duration,
         not_break_duration: Duration,
-    ) -> NotifyTime {
-        NotifyTime {
+    ) -> TimeBreak {
+        TimeBreak {
             break_duration,
             not_break_duration,
             not_break_timer: Stopwatch::new(),
             break_timer: Stopwatch::new(),
             state: in_state,
+
+            start_break_subscribers: vec![],
         }
+    }
+
+    pub fn update(&self, world: &World) {}
+
+    pub fn break_state(&self) -> BreakState {
+        self.state
     }
 }
 
-pub struct NotifyActivity {
+pub struct ActivityBreak {
     activity_monitor: ActivityMonitor,
 
     high_activity_level: f64,
@@ -49,7 +61,7 @@ pub struct NotifyActivity {
     state: BreakState,
 }
 
-impl NotifyActivity {
+impl ActivityBreak {
     pub fn new(
         in_state: BreakState,
         high_activity_level: f64,
@@ -57,8 +69,8 @@ impl NotifyActivity {
         duration: Duration,
         duration_count_as_idle: Duration,
         break_duration: Duration,
-    ) -> NotifyActivity {
-        NotifyActivity {
+    ) -> ActivityBreak {
+        ActivityBreak {
             activity_monitor: ActivityMonitor::new(
                 |_, activity_kind, amount| match activity_kind {
                     ActivityKind::KeyPress => 1.0 * amount as f64,

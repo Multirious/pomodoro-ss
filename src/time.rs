@@ -1,7 +1,8 @@
 use std::time::Duration;
 
-use crate::{Process, World};
+use crate::World;
 
+#[derive(Debug, Clone)]
 pub struct Stopwatch {
     time: Duration,
     pub pause: bool,
@@ -25,10 +26,8 @@ impl Stopwatch {
     pub fn time(&self) -> Duration {
         self.time
     }
-}
 
-impl Process for Stopwatch {
-    fn update(&mut self, world: &mut World) {
+    fn update(&mut self, world: &World) {
         if self.pause {
             return;
         }
@@ -36,6 +35,7 @@ impl Process for Stopwatch {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Timer {
     time_left: Duration,
     pub pause: bool,
@@ -52,10 +52,8 @@ impl Timer {
     pub fn time_left(&self) -> Duration {
         self.time_left
     }
-}
 
-impl Process for Timer {
-    fn update(&mut self, world: &mut World) {
+    fn update(&mut self, world: &World) {
         if self.pause {
             return;
         }
@@ -63,6 +61,7 @@ impl Process for Timer {
     }
 }
 
+#[derive(Debug, Clone)]
 struct FormattedDuration {
     hours: u32,
     minutes: u32,

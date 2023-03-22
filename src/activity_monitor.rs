@@ -5,7 +5,7 @@ use std::{
 
 use device_query::{DeviceEvents, DeviceQuery, DeviceState, Keycode};
 
-use crate::{Process, World};
+use crate::World;
 
 pub type CalculateActivityFn = Box<dyn Fn(&ActivityMonitor, ActivityKind, usize) -> f64>;
 
@@ -113,10 +113,8 @@ impl ActivityMonitor {
         self.data.push_back((activity, Instant::now(), val));
         self.total_activity_value += val;
     }
-}
 
-impl Process for ActivityMonitor {
-    fn update(&mut self, world: &mut World) {
+    fn update(&mut self, world: &World) {
         let mouse = DeviceState.get_mouse();
         let mouse_coord = mouse.coords.into();
         let keys = DeviceState.get_keys();

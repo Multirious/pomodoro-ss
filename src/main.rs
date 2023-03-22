@@ -14,10 +14,6 @@ mod break_notifier;
 mod os;
 mod time;
 
-trait Process {
-    fn update(&mut self, world: &mut World);
-}
-
 pub struct World {
     delta: Duration,
 }
