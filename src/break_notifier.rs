@@ -13,37 +13,74 @@ pub enum BreakState {
     NotBreak,
 }
 
-pub struct TimeBreak {
+pub struct BasicTimeBreak {
     break_duration: Duration,
     break_timer: Stopwatch,
     not_break_duration: Duration,
     not_break_timer: Stopwatch,
     state: BreakState,
 
-    start_break_subscribers: Vec<Box<dyn Fn()>>,
+    start_break_callback: Option<Box<dyn Fn()>>,
+    end_break_callback: Option<Box<dyn Fn()>>,
 }
 
-impl TimeBreak {
+impl BasicTimeBreak {
     pub fn new(
         in_state: BreakState,
         break_duration: Duration,
         not_break_duration: Duration,
-    ) -> TimeBreak {
-        TimeBreak {
+    ) -> BasicTimeBreak {
+        BasicTimeBreak {
             break_duration,
             not_break_duration,
             not_break_timer: Stopwatch::new(),
             break_timer: Stopwatch::new(),
             state: in_state,
 
-            start_break_subscribers: vec![],
+            start_break_callback: None,
+            end_break_callback: None,
         }
     }
 
-    pub fn update(&self, world: &World) {}
+    pub fn update(&mut self, world: &World) {
+        match self.state {
+            BreakState::Break => {
+                self.break_timer.update(world);
+                if self.break_timer.time() > self.break_duration {
+                    self.break_timer.pause = true;
+                    self.end_break_callback.as_ref().map(|f| f());
+                    self.not_break_timer.restart();
+                    self.state = BreakState::NotBreak;
+                }
+            }
+            BreakState::NotBreak => {
+                self.not_break_timer.update(world);
+                if self.not_break_timer.time() > self.not_break_duration {
+                    self.not_break_timer.pause = true;
+                    self.start_break_callback.as_ref().map(|f| f());
+                    self.break_timer.restart();
+                    self.state = BreakState::Break;
+                }
+            }
+        }
+    }
 
     pub fn break_state(&self) -> BreakState {
         self.state
+    }
+
+    pub fn set_start_break_callback<F>(&mut self, f: Option<F>)
+    where
+        F: Fn() + 'static,
+    {
+        self.start_break_callback = f.map(|f| Box::new(f) as _)
+    }
+
+    pub fn set_end_break_callback<F>(&mut self, f: Option<F>)
+    where
+        F: Fn() + 'static,
+    {
+        self.end_break_callback = f.map(|f| Box::new(f) as _)
     }
 }
 

@@ -27,7 +27,12 @@ impl Stopwatch {
         self.time
     }
 
-    fn update(&mut self, world: &World) {
+    pub fn restart(&mut self) {
+        self.time = Duration::ZERO;
+        self.pause = false;
+    }
+
+    pub fn update(&mut self, world: &World) {
         if self.pause {
             return;
         }
@@ -53,7 +58,7 @@ impl Timer {
         self.time_left
     }
 
-    fn update(&mut self, world: &World) {
+    pub fn update(&mut self, world: &World) {
         if self.pause {
             return;
         }
