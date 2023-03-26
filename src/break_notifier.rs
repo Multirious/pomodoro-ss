@@ -42,13 +42,30 @@ impl BasicTimeBreak {
         }
     }
 
+    /// This will not call the callback
+    pub fn skip_to(&mut self, state: BreakState, time: Duration) {
+        self.state = state;
+        match state {
+            BreakState::Break => {
+                self.not_break_timer.pause = true;
+                self.break_timer.restart();
+            }
+            BreakState::NotBreak => {
+                self.break_timer.pause = true;
+                self.not_break_timer.restart();
+            }
+        }
+    }
+
     pub fn update(&mut self, world: &World) {
         match self.state {
             BreakState::Break => {
                 self.break_timer.update(world);
                 if self.break_timer.time() > self.break_duration {
                     self.break_timer.pause = true;
-                    self.end_break_callback.as_ref().map(|f| f());
+                    if let Some(f) = self.end_break_callback.as_ref() {
+                        f()
+                    }
                     self.not_break_timer.restart();
                     self.state = BreakState::NotBreak;
                 }
@@ -57,7 +74,9 @@ impl BasicTimeBreak {
                 self.not_break_timer.update(world);
                 if self.not_break_timer.time() > self.not_break_duration {
                     self.not_break_timer.pause = true;
-                    self.start_break_callback.as_ref().map(|f| f());
+                    if let Some(f) = self.start_break_callback.as_ref() {
+                        f()
+                    }
                     self.break_timer.restart();
                     self.state = BreakState::Break;
                 }

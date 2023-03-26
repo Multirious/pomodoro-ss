@@ -15,6 +15,7 @@ mod activity_monitor;
 mod break_notifier;
 #[cfg(windows)]
 mod os;
+mod schedule;
 mod time;
 
 pub struct World {
@@ -33,18 +34,18 @@ enum TrayInputEvent {
     RestartWork,
 }
 
-fn init_tray_item() -> Result<(mpsc::Receiver<TrayInputEvent>, tray_item::TrayItem)> {
-    let mut tray_item = os::tray_item()?;
+fn init_tray_item() -> Result<(mpsc::Receiver<TrayInputEvent>, u32)> {
+    //     let mut tray_item = os::tray_item()?;
     let (tray_item_send, tray_item_recv) = mpsc::sync_channel(2);
-    let tray_item_send_cloned = tray_item_send.clone();
-    tray_item.add_menu_item("Quit", move || {
-        let _result = tray_item_send_cloned.try_send(TrayInputEvent::Quit);
-    })?;
-    Ok((tray_item_recv, tray_item))
+    //     let tray_item_send_cloned = tray_item_send.clone();
+    //     tray_item.add_menu_item("Quit", move || {
+    //         tray_item_send_cloned.just_send(TrayInputEvent::Quit)
+    //     })?;
+    Ok((tray_item_recv, 0))
 }
 
 fn main() -> Result<()> {
-    let (tray_item_recv, tray_item) = init_tray_item()?;
+    let (tray_item_recv, _) = init_tray_item()?;
 
     let mut break_notifier = break_notifier::BasicTimeBreak::new(
         BreakState::NotBreak,
@@ -56,12 +57,8 @@ fn main() -> Result<()> {
     let mut is_break = false;
 
     let break_send_c = break_send.clone();
-    break_notifier.set_start_break_callback(Some(move || {
-        let res_ = break_send_c.send(true);
-    }));
-    break_notifier.set_end_break_callback(Some(move || {
-        let res_ = break_send.send(false);
-    }));
+    break_notifier.set_start_break_callback(Some(move || break_send_c.just_send(true)));
+    break_notifier.set_end_break_callback(Some(move || break_send.just_send(false)));
 
     main_loop_run(|world| {
         break_notifier.update(world);
@@ -69,7 +66,10 @@ fn main() -> Result<()> {
         if let Some(tray_input_event) = tray_item_recv.maybe_recv().break_res_err()? {
             match tray_input_event {
                 TrayInputEvent::Quit => return ControlFlow::Break(Ok(())),
-                TrayInputEvent::RestartWork => todo!(),
+                TrayInputEvent::RestartWork => {
+                    break_notifier.skip_to(BreakState::Break, Duration::ZERO);
+                    is_break = false;
+                }
             }
         }
         if let Some(recv_is_break) = break_recv.maybe_recv().break_res_err()? {
@@ -104,17 +104,27 @@ impl<T, E> ResultIntoControLFlow<T, E> for Result<T, E> {
     }
 }
 
-trait MpscMaybeReceive<T> {
+trait MpscRecvExt<T> {
     fn maybe_recv(&self) -> std::result::Result<Option<T>, mpsc::TryRecvError>;
 }
 
-impl<T> MpscMaybeReceive<T> for mpsc::Receiver<T> {
+impl<T> MpscRecvExt<T> for mpsc::Receiver<T> {
     fn maybe_recv(&self) -> std::result::Result<Option<T>, mpsc::TryRecvError> {
         match self.try_recv() {
             Ok(o) => Ok(Some(o)),
             Err(mpsc::TryRecvError::Empty) => Ok(None),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e),
         }
+    }
+}
+
+trait MpscSendExt<T> {
+    fn just_send(&self, v: T);
+}
+
+impl<T> MpscSendExt<T> for mpsc::SyncSender<T> {
+    fn just_send(&self, v: T) {
+        let _res = self.send(v);
     }
 }
 

@@ -28,8 +28,12 @@ impl Stopwatch {
     }
 
     pub fn restart(&mut self) {
-        self.time = Duration::ZERO;
+        self.reset();
         self.pause = false;
+    }
+
+    pub fn reset(&mut self) {
+        self.time = Duration::ZERO;
     }
 
     pub fn update(&mut self, world: &World) {
