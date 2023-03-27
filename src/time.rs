@@ -36,6 +36,10 @@ impl Stopwatch {
         self.time = Duration::ZERO;
     }
 
+    pub fn advance(&mut self, duration: Duration) {
+        self.time += duration;
+    }
+
     pub fn update(&mut self, world: &World) {
         if self.pause {
             return;
