@@ -42,6 +42,16 @@ impl BasicTimeBreak {
         }
     }
 
+    pub fn time_before_start_break(&self) -> Option<Duration> {
+        if self.not_break_timer.pause {
+            None
+        } else {
+            Some(self.not_break_duration - self.not_break_timer)
+        }
+    }
+
+    pub fn time_before_end_break(&self) -> Option<Duration> {}
+
     /// This will not call the callback
     pub fn skip_to(&mut self, state: BreakState, time: Duration) {
         self.state = state;

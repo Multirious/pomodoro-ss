@@ -73,7 +73,6 @@ fn main() -> Result<()> {
             }
         }
         if let Some(recv_is_break) = break_recv.maybe_recv().break_res_err()? {
-            dbg!(recv_is_break);
             is_break = recv_is_break;
         }
         let _res = os::block_input(is_break);
